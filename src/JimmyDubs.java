@@ -6,14 +6,14 @@ import struct.GameData;
 import struct.Key;
 
 
-public class FighterDubs implements AIInterface {
+public class JimmyDubs implements AIInterface {
 
 	private Key inputKey;
 	private boolean playerNumber;
 	private CommandCenter cc;
 	
 	private FrameData frameData;
-	
+
 	@Override
 	public void close() {
 	}
