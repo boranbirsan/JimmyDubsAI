@@ -22,6 +22,10 @@ public class JimmyDubs implements AIInterface {
 	private boolean player;
 	private CommandCenter cc;
 	private Simulator simulator;
+	private GameState state;
+
+	private boolean train = true;
+	private Train trainer;
 
 	private boolean debug = false;
 
@@ -78,6 +82,7 @@ public class JimmyDubs implements AIInterface {
 		cc = new CommandCenter();
 		frameData = new FrameData();
 		this.gameData = gameData;
+		state = new GameState();
 
 		simulator = gameData.getSimulator();
 
@@ -110,9 +115,9 @@ public class JimmyDubs implements AIInterface {
 		this.myActions = new LinkedList<Action>();
 		this.oppActions = new LinkedList<Action>();
 
-
 		try{
 			agent = new Agent();
+			trainer = new Train(null);
 			//TODO: Load the Action Weights
 		}catch (Exception e){
 			e.printStackTrace();
@@ -140,14 +145,16 @@ public class JimmyDubs implements AIInterface {
 				myOrigHp = frameData.getCharacter(player).getHp();
 				oppOrigHp = frameData.getCharacter(!player).getHp();
 
+				double reward = agent.getScore(frameData, myOrigHp, oppOrigHp);
+
 				FrameData frameDataAhead = simulator.simulate(frameData, this.player, null, null, 17);
 				myNextActions = getMyActions(frameDataAhead);
 
 				if(debug){}
 				else{
 
-					int next_action = agent.update(frameData, current_action, myActions, myNextActions);
-					current_action = next_action;
+					//int next_action = agent.update(frameData, reward, current_action, myActions);
+					//current_action = next_action;
 
 					chosenAction = myActions.get(current_action);
 				}
@@ -161,10 +168,21 @@ public class JimmyDubs implements AIInterface {
 	public void roundEnd(int p1HP, int p2HP, int frames) {
 		inputKey.empty();
 		cc.skillCancel();
+
+		if (p1HP < p2HP){
+			trainer.setWinner(1);
+		}
+		else if (p1HP > p2HP){
+			trainer.setWinner(2);
+		}
+		else{
+			trainer.setWinner(0);
+		}
 	}
 
 	@Override
 	public void close() {
+		System.out.println("Saved");
 	}
 
 	public LinkedList getMyActions(FrameData frameData) {
