@@ -1,16 +1,59 @@
+import aiinterface.CommandCenter;
+import enumerate.Action;
 import enumerate.State;
 import struct.*;
 
+import java.awt.*;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.LinkedList;
 
 public class GameState {
 
-    double myLastX =0;
-    double myLastY =0;
-    double oppLastX =0;
-    double oppLastY =0;
+    private GameData gameData;
 
-    public GameState(){
+    private CommandCenter cc;
+
+    private FrameData frameData;
+
+    private boolean player;
+
+    private String myChar;
+
+    private Action[] actionAir;
+    private Action[] actionGround;
+    private Action spSkill;
+
+    public LinkedList<Action> myActions;
+    public ArrayList<Integer> myActionIndex;
+
+    private double myLastX =0;
+    private double myLastY =0;
+    private double oppLastX =0;
+    private double oppLastY =0;
+
+    public GameState(GameData gd, CommandCenter cc, boolean player, String myChar){
+        this.gameData = gd;
+        this.cc = cc;
+        this.player = player;
+        this.myChar = myChar;
+
+        myActions  = new LinkedList<>();
+
+        actionAir = new Action[] { Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA, Action.AIR_DB,
+                Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB, Action.AIR_D_DF_FA, Action.AIR_D_DF_FB,
+                Action.AIR_F_D_DFA, Action.AIR_F_D_DFB, Action.AIR_D_DB_BA, Action.AIR_D_DB_BB };
+        actionGround = new Action[] { Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK, Action.DASH,
+                Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD, Action.CROUCH_GUARD, Action.THROW_A,
+                Action.THROW_B, Action.STAND_A, Action.STAND_B, Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA,
+                Action.STAND_FB, Action.CROUCH_FA, Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB,
+                Action.STAND_F_D_DFA, Action.STAND_F_D_DFB, Action.STAND_D_DB_BB };
+        spSkill = Action.STAND_D_DF_FC;
+    }
+
+    public void updateState(CommandCenter cc, FrameData frameData, boolean player){
+       this.cc.setFrameData(frameData, player);
+       this.frameData = frameData;
 
     }
 
@@ -118,5 +161,20 @@ public class GameState {
         };
 
         return inputs;
+    }
+
+    public void setPossibleActions(FrameData frameData){
+        CharacterData myChar = frameData.getCharacter(player);
+        if(myChar.getState() == State.AIR){
+            for(int i = 0; i < actionAir.length; i++){
+                myActions.add(actionAir[i]);
+                myActionIndex.add(i);
+            }
+        }else{
+            for(int i = 0; i < actionGround.length; i++){
+                myActions.add(actionAir[i]);
+                myActionIndex.add(i + actionAir.length);
+            }
+        }
     }
 }

@@ -24,12 +24,18 @@ public class JimmyDubs implements AIInterface {
 	private Simulator simulator;
 	private GameState state;
 
+	double epsilon = 0.001;
+	double decay = 1;
+	double gamma = 0.95;//discount_factor
+	double alpha = 0.02;
+	double lambda = 0.1;
+
 	private boolean train = true;
-	private Train trainer;
+	private Train trainer = new Train(null);
 
 	private boolean debug = false;
 
-	private int current_action = 0;
+	private ActionObj current_action = new ActionObj(0, 0);
 
 	private int myOrigHp = 0, oppOrigHp = 0;
 
@@ -77,47 +83,27 @@ public class JimmyDubs implements AIInterface {
 	public int initialize(GameData gameData, boolean player) {
 		System.out.println("Initializing");
 
+		this.gameData = gameData;
 		this.player = player;
 		this.inputKey = new Key();
+
 		cc = new CommandCenter();
 		frameData = new FrameData();
-		this.gameData = gameData;
-		state = new GameState();
 
 		simulator = gameData.getSimulator();
 
-		actionAir = new Action[] { Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA, Action.AIR_DB,
-				Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB, Action.AIR_D_DF_FA, Action.AIR_D_DF_FB,
-				Action.AIR_F_D_DFA, Action.AIR_F_D_DFB, Action.AIR_D_DB_BA, Action.AIR_D_DB_BB };
-		actionGround = new Action[] { Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK, Action.DASH,
-				Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD, Action.CROUCH_GUARD, Action.THROW_A,
-				Action.THROW_B, Action.STAND_A, Action.STAND_B, Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA,
-				Action.STAND_FB, Action.CROUCH_FA, Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB,
-				Action.STAND_F_D_DFA, Action.STAND_F_D_DFB, Action.STAND_D_DB_BB };
-		spSkill = Action.STAND_D_DF_FC;
-
-		myCharacter = frameData.getCharacter(player);
 		myMotion = gameData.getMotionData(this.player);
 		oppMotion = gameData.getMotionData(!this.player);
 
 		String tempName = this.gameData.getCharacterName(this.player);
-		if(tempName.equals("ZEN"))
-			charName = CharacterName.ZEN;
-		else if (tempName.equals("GARNET"))
-			charName = CharacterName.GARNET;
-		else if (tempName.equals("LUD"))
-			charName = CharacterName.LUD;
-		else
-			charName = CharacterName.OTHER;
 
-		myMotion = gameData.getMotionData(player);
-		oppMotion = gameData.getMotionData(!player);
+		state = new GameState(gameData, cc, player, tempName);
+
 		this.myActions = new LinkedList<Action>();
 		this.oppActions = new LinkedList<Action>();
 
+		agent = new Agent(state, frameData, epsilon, gamma, alpha, lambda, player);
 		try{
-			agent = new Agent();
-			trainer = new Train(null);
 			//TODO: Load the Action Weights
 		}catch (Exception e){
 			e.printStackTrace();
@@ -134,6 +120,8 @@ public class JimmyDubs implements AIInterface {
 	@Override
 	public void processing() {
 		if(!frameData.getEmptyFlag() && frameData.getRemainingFramesNumber() > 0){
+
+			state.updateState(cc, frameData, player);
 			if(cc.getSkillFlag()){
 				inputKey = cc.getSkillKey();
 			}else {
@@ -153,13 +141,11 @@ public class JimmyDubs implements AIInterface {
 				if(debug){}
 				else{
 
-					//int next_action = agent.update(frameData, reward, current_action, myActions);
-					//current_action = next_action;
-
-					chosenAction = myActions.get(current_action);
+					ActionObj next_action = agent.update(frameData, reward, current_action.getIndex());
+					current_action = next_action;
 				}
 
-				cc.commandCall(chosenAction.name());
+				cc.commandCall(state.myActions.get(current_action.getIndex()).name());
 			}
 		}
 	}
