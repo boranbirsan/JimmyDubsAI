@@ -2,28 +2,28 @@ import java.io.PrintWriter;
 
 public class Train {
 
-    int population = 64;
+    private int population = 25;
 
     // TEMP NUMBERS ---------------------------------------
-    int inputNum = 64;
-    int hiddenNum = 64;
-    int outputNum = 56;
+    private int inputNum = 64;
+    private int hiddenNum = 64;
+    private int outputNum = 56;
     // ---------------------------------------------------
 
-    int weightsNum;
+    private int weightsNum;
 
-    float[][] weights;
+    private float[][] weights;
 
-    float[] fitness;
+    private float[] fitness;
 
-    int currentIndividual = 0;
-    int otherIndividual = 1;
+    private int currentIndividual = 0;
+    private int otherIndividual = 1;
 
-    int generation = 1;
+    private int generation = 1;
 
-    PrintWriter log;
+    private PrintWriter log;
 
-    public Train(String weightsFileName) throws Exception{
+    public Train(String weightsFileName){
 
         weightsNum = inputNum*hiddenNum + hiddenNum*outputNum;
 
@@ -38,8 +38,11 @@ public class Train {
         }else{
             // TODO: Read Weights File
         }
-
-        log = new PrintWriter("log", "UTF-8");
+        try {
+            log = new PrintWriter("log", "UTF-8");
+        }catch(Exception e){
+            e.printStackTrace();
+        }
 
         fitness = new float[population];
     }
