@@ -9,32 +9,8 @@ public class Storage implements Serializable {
 
     public Storage() {
         super();
-        inputs = new ArrayList<boolean[]>();
-        targets = new ArrayList<Double>();
-        actions = new ArrayList<Integer>();
-    }
-
-    public ArrayList<boolean[]> getInputs() {
-        return inputs;
-    }
-
-    public void setInputs(ArrayList<boolean[]> inputs) {
-        this.inputs = inputs;
-    }
-
-    public ArrayList<Double> getTargets() {
-        return targets;
-    }
-
-    public void setTargets(ArrayList<Double> targets) {
-        this.targets = targets;
-    }
-
-    public ArrayList<Integer> getActs() {
-        return actions;
-    }
-
-    public void setActs(ArrayList<Integer> actsions) {
-        this.actions = actions;
+        inputs = new ArrayList<>();
+        targets = new ArrayList<>();
+        actions = new ArrayList<>();
     }
 }
