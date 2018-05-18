@@ -2,10 +2,7 @@ import enumerate.Action;
 import simulator.Simulator;
 import struct.FrameData;
 
-import java.awt.*;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.Random;
+import java.util.*;
 
 public class Agent {
     Simulator simulator;
@@ -30,6 +27,10 @@ public class Agent {
     boolean player;
 
     FrameData frameData;
+
+    ArrayList<Replay> storage;
+    int maxMemory = 1000;
+    int memorySize = 32;
 
     public Agent(GameState state, FrameData fd, double epsilon, double discount_factor, double alpha, double lambda, boolean player) {
         this.state = state;
@@ -80,9 +81,9 @@ public class Agent {
 
     public ActionObj update(FrameData fd,double reward, int action_index){
 
-        ActionObj action = getNextAction(reward);
-
         inputs = state.getInputs(fd);
+
+        ActionObj action = getNextAction(reward);
 
         int activeInputs = 0;
         for (int i = 0; i < inputs.length; i++){
@@ -104,12 +105,36 @@ public class Agent {
 
         updateWeights(weights[action_index], inputs, fact1);
 
+        if(storage.size() >= maxMemory){
+
+            updateFromBatch(memorySize);
+        }
+
+        storage.add(new Replay(inputs, fact1, action.getIndex()));
+
         lastValue = action.getValue();
         return action;
     }
 
     public void updateWeights(float[][] weights){
         this.weights = weights;
+    }
+
+    public void updateFromBatch(int size){
+        Random random = new Random();
+        Set<Integer> intSet = new HashSet<>();
+
+        while(intSet.size() < size){
+            int rand = random.nextInt(storage.size());
+            intSet.add(rand);
+        }
+
+        Iterator<Integer> iter = intSet.iterator();
+        while(iter.hasNext()){
+            Replay replay = storage.get(iter.next());
+            float[] weight = weights[replay.action];
+            updateWeights(weight, replay.inputs, replay.target);
+        }
     }
 
     public void updateWeights(float[] weights, boolean[] inputs, double a){

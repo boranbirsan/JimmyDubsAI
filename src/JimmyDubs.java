@@ -12,6 +12,7 @@ import struct.Key;
 import sun.awt.image.ImageWatched;
 
 import java.awt.*;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
@@ -190,5 +191,53 @@ public class JimmyDubs implements AIInterface {
 			}
 		}
 		return actions;
+	}
+
+	public void loadReplay(){
+
+		ObjectInputStream in;
+
+		try{
+			in = new ObjectInputStream(new FileInputStream("Replays/batch.ser"));
+
+			Storage store = (Storage) in.readObject();
+
+			for (int i = 0; i < store.size; i++){
+				boolean[] arr = store.inputs.get(i);
+
+				int action = store.actions.get(i);
+				Double target = store.targets.get(i);
+
+				Replay replay = new Replay(arr, target, action);
+
+				agent.storage.add(replay);
+			}
+		}catch (IOException | ClassNotFoundException e){
+			e.printStackTrace();
+		}
+	}
+
+	public void saveReplay(){
+		Storage store = new Storage();
+
+		for (int i = 0; i < agent.storage.size(); i++) {
+
+			Replay r = agent.storage.get(i);
+
+			store.inputs.add(r.inputs);
+			store.actions.add(r.action);
+			store.targets.add(r.target);
+			store.size++;
+		}
+		try{
+			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("Replays/batch.ser"));
+
+			out.writeObject(store);
+
+			out.flush();
+			out.close();
+		}catch (IOException e){
+			e.printStackTrace();
+		}
 	}
 }
