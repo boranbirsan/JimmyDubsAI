@@ -86,7 +86,7 @@ public class Agent {
             }
         }
 
-        double new_alpha = 0;
+        double new_alpha;
         if (activeInputs == 0 ){
             new_alpha = alpha;
         }else{

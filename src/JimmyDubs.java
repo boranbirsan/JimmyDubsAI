@@ -50,35 +50,7 @@ public class JimmyDubs implements AIInterface {
 	
 	private FrameData frameData;
 
-	private LinkedList<Action> myActions;
-
-	private LinkedList<Action> myNextActions;
-
-	private LinkedList<Action> oppActions;
-
-	private Action[] totalActions;
-
-	private Action[] actionAir;
-
-	private Action[] oppActionAir;
-
-	private Action[] actionGround;
-
-	private Action[] oppActionGround;
-
-	private Action chosenAction;
-
-	private Action spSkill;
-
-	private CharacterData myCharacter;
-
-	private CharacterData oppCharacter;
-
-	private ArrayList<MotionData> myMotion;
-
-	private ArrayList<MotionData> oppMotion;
-
-	private CharacterName charName;
+	private String charName;
 
 	@Override
 	public void getInformation(FrameData frameData) {
@@ -99,25 +71,19 @@ public class JimmyDubs implements AIInterface {
 
 		simulator = gameData.getSimulator();
 
-		myMotion = gameData.getMotionData(this.player);
-		oppMotion = gameData.getMotionData(!this.player);
-
-		String tempName = this.gameData.getCharacterName(this.player);
+		charName = this.gameData.getCharacterName(this.player);
 
 		state = new GameState(gameData, cc, player);
 
-		this.myActions = new LinkedList<Action>();
-		this.oppActions = new LinkedList<Action>();
-
 		agent = new Agent(state, frameData, epsilon, gamma, alpha, lambda, player);
 
-		if(tempName.equals("ZEN")){
+		if(charName.equals("ZEN")){
 			loadWeights(zenWeights);
 			loadReplay(zenMemory);
-		}else if (tempName.equals("Garnet")){
+		}else if (charName.equals("Garnet")){
 			loadWeights(garnetWeights);
 			loadReplay(garnetMemory);
-		}else if (tempName.equals("LUD")){
+		}else if (charName.equals("LUD")){
 			loadWeights(ludWeights);
 			loadReplay(ludMemory);
 		}else{
