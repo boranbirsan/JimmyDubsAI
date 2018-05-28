@@ -3,7 +3,6 @@ import enumerate.Action;
 import enumerate.State;
 import struct.*;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -18,8 +17,11 @@ public class GameState {
 
     private boolean player;
 
-    private String myChar;
+    private CharacterData myChar;
 
+    private CharacterData opp;
+
+    public Action[] totalActions;
     private Action[] actionAir;
     private Action[] actionGround;
     private Action spSkill;
@@ -32,11 +34,11 @@ public class GameState {
     private double oppLastX =0;
     private double oppLastY =0;
 
-    public GameState(GameData gd, CommandCenter cc, boolean player, String myChar){
+    public GameState(GameData gd, CommandCenter cc, boolean player){
         this.gameData = gd;
         this.cc = cc;
         this.player = player;
-        this.myChar = myChar;
+
 
         myActions  = new LinkedList<>();
 
@@ -49,17 +51,29 @@ public class GameState {
                 Action.STAND_FB, Action.CROUCH_FA, Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB,
                 Action.STAND_F_D_DFA, Action.STAND_F_D_DFB, Action.STAND_D_DB_BB };
         spSkill = Action.STAND_D_DF_FC;
+
+        totalActions = new Action[]{ Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA,
+                Action.AIR_DB, Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB,
+                Action.AIR_D_DF_FA, Action.AIR_D_DF_FB, Action.AIR_F_D_DFA, Action.AIR_F_D_DFB,
+                Action.AIR_D_DB_BA, Action.AIR_D_DB_BB, Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK,
+                Action.DASH, Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD,
+                Action.CROUCH_GUARD, Action.THROW_A, Action.THROW_B, Action.STAND_A, Action.STAND_B,
+                Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA, Action.STAND_FB, Action.CROUCH_FA,
+                Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB, Action.STAND_F_D_DFA,
+                Action.STAND_F_D_DFB, Action.STAND_D_DB_BB, Action.STAND_D_DF_FC};
     }
 
     public void updateState(CommandCenter cc, FrameData frameData, boolean player){
-       this.cc.setFrameData(frameData, player);
-       this.frameData = frameData;
-
+        this.cc = cc;
+        this.cc.setFrameData(frameData, player);
+        this.frameData = frameData;
+        this.myChar = frameData.getCharacter(player);
+        this.opp = frameData.getCharacter(!player);
     }
 
     public boolean[] getInputs(FrameData frameData){
-        CharacterData myChar = frameData.getCharacter(true);
-        CharacterData oppChar = frameData.getCharacter(false);
+        CharacterData myChar = frameData.getCharacter(player);
+        CharacterData oppChar = frameData.getCharacter(!player);
 
         boolean[] inputs;
 
@@ -165,15 +179,27 @@ public class GameState {
 
     public void setPossibleActions(FrameData frameData){
         CharacterData myChar = frameData.getCharacter(player);
+        int energy = myChar.getEnergy();
+        ArrayList<MotionData> VM = gameData.getMotionData(player);
+
         if(myChar.getState() == State.AIR){
             for(int i = 0; i < actionAir.length; i++){
-                myActions.add(actionAir[i]);
-                myActionIndex.add(i);
+                if (VM.get(actionAir[i].ordinal()).getAttackStartAddEnergy() <= energy) {
+                    myActions.add(actionAir[i]);
+                    myActionIndex.add(i);
+                }
             }
         }else{
             for(int i = 0; i < actionGround.length; i++){
-                myActions.add(actionAir[i]);
-                myActionIndex.add(i + actionAir.length);
+                if (VM.get(actionGround[i].ordinal()).getAttackStartAddEnergy() <= energy) {
+                    myActions.add(actionGround[i]);
+                    myActionIndex.add(i + actionAir.length);
+                }
+            }
+
+            if (VM.get(totalActions[actionAir.length + actionGround.length].ordinal()).getAttackStartAddEnergy() <= energy) {
+                myActions.add(spSkill);
+                myActionIndex.add(actionAir.length + actionGround.length);
             }
         }
     }

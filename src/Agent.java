@@ -14,7 +14,8 @@ public class Agent {
 
     Random rand = new Random();
 
-    int outputNum = 56;
+    int outputNum = 40;
+    int inputNum = 49;
 
     float lastValue;
 
@@ -22,13 +23,12 @@ public class Agent {
     boolean[] inputs;
 
     int nextAction;
-//    int max_batch_size = 10000;
-//    int batch_update_size = 32;
+
     boolean player;
 
     FrameData frameData;
 
-    ArrayList<Replay> storage;
+    ArrayList<Replay> memory;
     int maxMemory = 1000;
     int memorySize = 32;
 
@@ -42,8 +42,7 @@ public class Agent {
         this.player = player;
     }
 
-    public ActionObj getNextAction(double reward){
-        Deque<Action> myActions = new LinkedList<>();
+    public ActionObj getNextAction(){
         int index = 0;
 
         double random_act = rand.nextDouble();
@@ -51,9 +50,6 @@ public class Agent {
         if (random_act <= epsilon){
             int max = state.myActionIndex.size();
             int randomIndex = rand.nextInt(max);
-
-            myActions.clear();
-            myActions.add(state.myActions.get(randomIndex));
 
             float q = getExpectation(weights[state.myActionIndex.get(randomIndex)]);
 
@@ -66,8 +62,6 @@ public class Agent {
         int chosenActIndex = 0;
 
         for(int i = 0; i < state.myActionIndex.size(); i++){
-            myActions.clear();
-            myActions.add(state.myActions.get(i));
 
             float q = getExpectation(weights[state.myActionIndex.get(i)]);
 
@@ -83,7 +77,7 @@ public class Agent {
 
         inputs = state.getInputs(fd);
 
-        ActionObj action = getNextAction(reward);
+        ActionObj action = getNextAction();
 
         int activeInputs = 0;
         for (int i = 0; i < inputs.length; i++){
@@ -105,12 +99,12 @@ public class Agent {
 
         updateWeights(weights[action_index], inputs, fact1);
 
-        if(storage.size() >= maxMemory){
+        if(memory.size() >= maxMemory){
 
             updateFromBatch(memorySize);
         }
 
-        storage.add(new Replay(inputs, fact1, action.getIndex()));
+        memory.add(new Replay(inputs, fact1, action.getIndex()));
 
         lastValue = action.getValue();
         return action;
@@ -125,13 +119,13 @@ public class Agent {
         Set<Integer> intSet = new HashSet<>();
 
         while(intSet.size() < size){
-            int rand = random.nextInt(storage.size());
+            int rand = random.nextInt(memory.size());
             intSet.add(rand);
         }
 
         Iterator<Integer> iter = intSet.iterator();
         while(iter.hasNext()){
-            Replay replay = storage.get(iter.next());
+            Replay replay = memory.get(iter.next());
             float[] weight = weights[replay.action];
             updateWeights(weight, replay.inputs, replay.target);
         }
@@ -161,8 +155,8 @@ public class Agent {
     }
 
     public int getScore(FrameData fd, int myOrigHp, int oppOrigHp) {
-        int diffHpOp = Math.abs(fd.getCharacter(false).getHp() - oppOrigHp);
-        int diffHpMy = Math.abs(fd.getCharacter(true).getHp() - myOrigHp);
+        int diffHpOp = Math.abs(fd.getCharacter(!player).getHp() - oppOrigHp);
+        int diffHpMy = Math.abs(fd.getCharacter(player).getHp() - myOrigHp);
 
         if (diffHpMy == diffHpOp && diffHpMy != 0) {
             return -1;

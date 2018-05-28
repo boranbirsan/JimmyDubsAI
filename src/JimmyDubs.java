@@ -9,12 +9,11 @@ import struct.FrameData;
 import struct.GameData;
 import struct.MotionData;
 import struct.Key;
-import sun.awt.image.ImageWatched;
 
-import java.awt.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Random;
 
 
 public class JimmyDubs implements AIInterface {
@@ -31,8 +30,13 @@ public class JimmyDubs implements AIInterface {
 	double alpha = 0.02;
 	double lambda = 0.1;
 
-	private boolean train = true;
-	private Train trainer = new Train(null);
+	String zenWeights = "data/aiData/zen_weights.ser";
+	String garnetWeights = "data/aiData/garnet_weights.ser";
+	String ludWeights = "data/aiData/lud_weights.ser";
+
+	String zenMemory = "data/aiData/zen_batch.ser";
+	String garnetMemory = "data/aiData/garnet_batch.ser";
+	String ludMemory = "data/aiData/lud_batch.ser";
 
 	private boolean debug = false;
 
@@ -51,6 +55,8 @@ public class JimmyDubs implements AIInterface {
 	private LinkedList<Action> myNextActions;
 
 	private LinkedList<Action> oppActions;
+
+	private Action[] totalActions;
 
 	private Action[] actionAir;
 
@@ -98,16 +104,25 @@ public class JimmyDubs implements AIInterface {
 
 		String tempName = this.gameData.getCharacterName(this.player);
 
-		state = new GameState(gameData, cc, player, tempName);
+		state = new GameState(gameData, cc, player);
 
 		this.myActions = new LinkedList<Action>();
 		this.oppActions = new LinkedList<Action>();
 
 		agent = new Agent(state, frameData, epsilon, gamma, alpha, lambda, player);
-		try{
-			//TODO: Load the Action Weights
-		}catch (Exception e){
-			e.printStackTrace();
+
+		if(tempName.equals("ZEN")){
+			loadWeights(zenWeights);
+			loadReplay(zenMemory);
+		}else if (tempName.equals("Garnet")){
+			loadWeights(garnetWeights);
+			loadReplay(garnetMemory);
+		}else if (tempName.equals("LUD")){
+			loadWeights(ludWeights);
+			loadReplay(ludMemory);
+		}else{
+			loadWeights(zenWeights);
+			loadReplay(zenMemory);
 		}
 
 		return 0;
@@ -129,15 +144,13 @@ public class JimmyDubs implements AIInterface {
 				inputKey.empty();
 				cc.skillCancel();
 
-				myActions = getMyActions(frameData);
-
 				myOrigHp = frameData.getCharacter(player).getHp();
 				oppOrigHp = frameData.getCharacter(!player).getHp();
 
 				double reward = agent.getScore(frameData, myOrigHp, oppOrigHp);
 
 				FrameData frameDataAhead = simulator.simulate(frameData, this.player, null, null, 17);
-				myNextActions = getMyActions(frameDataAhead);
+				state.setPossibleActions(frameDataAhead);
 
 				if(debug){}
 				else{
@@ -146,7 +159,7 @@ public class JimmyDubs implements AIInterface {
 					current_action = next_action;
 				}
 
-				cc.commandCall(state.myActions.get(current_action.getIndex()).name());
+				cc.commandCall(state.totalActions[current_action.getIndex()].name());
 			}
 		}
 	}
@@ -156,14 +169,18 @@ public class JimmyDubs implements AIInterface {
 		inputKey.empty();
 		cc.skillCancel();
 
-		if (p1HP < p2HP){
-			trainer.setWinner(1);
-		}
-		else if (p1HP > p2HP){
-			trainer.setWinner(2);
-		}
-		else{
-			trainer.setWinner(0);
+		if(charName.equals("ZEN")){
+			saveWeights(zenWeights);
+			saveReplay(zenMemory);
+		}else if(charName.equals("GARNET")){
+			saveWeights(garnetWeights);
+			saveReplay(garnetMemory);
+		}else if(charName.equals("LUD")){
+			saveWeights(ludWeights);
+			saveReplay(ludMemory);
+		}else{
+			saveWeights(zenWeights);
+			saveReplay(zenMemory);
 		}
 	}
 
@@ -172,33 +189,12 @@ public class JimmyDubs implements AIInterface {
 		System.out.println("Saved");
 	}
 
-	public LinkedList getMyActions(FrameData frameData) {
-		int energy = myCharacter.getEnergy();
-		LinkedList<Action> actions = new LinkedList();
-		CharacterData character = frameData.getCharacter(player);
-
-		if (character.getState() == State.AIR) {
-			for (int i = 0; i < actionAir.length; i++) {
-				if (Math.abs(myMotion.get(Action.valueOf(actionAir[i].name()).ordinal()).getAttackStartAddEnergy()) <= energy) {
-					actions.add(actionAir[i]);
-				}
-			}
-		} else {
-			for (int i = 0; i < actionGround.length; i++) {
-				if (Math.abs(myMotion.get(Action.valueOf(actionGround[i].name()).ordinal()).getAttackStartAddEnergy()) <= energy) {
-					actions.add(actionGround[i]);
-				}
-			}
-		}
-		return actions;
-	}
-
-	public void loadReplay(){
+	public void loadReplay(String fileName){
 
 		ObjectInputStream in;
 
 		try{
-			in = new ObjectInputStream(new FileInputStream("Replays/batch.ser"));
+			in = new ObjectInputStream(new FileInputStream(fileName));
 
 			Storage store = (Storage) in.readObject();
 
@@ -210,19 +206,19 @@ public class JimmyDubs implements AIInterface {
 
 				Replay replay = new Replay(arr, target, action);
 
-				agent.storage.add(replay);
+				agent.memory.add(replay);
 			}
 		}catch (IOException | ClassNotFoundException e){
 			e.printStackTrace();
 		}
 	}
 
-	public void saveReplay(){
+	public void saveReplay(String fileName){
 		Storage store = new Storage();
 
-		for (int i = 0; i < agent.storage.size(); i++) {
+		for (int i = 0; i < agent.memory.size(); i++) {
 
-			Replay r = agent.storage.get(i);
+			Replay r = agent.memory.get(i);
 
 			store.inputs.add(r.inputs);
 			store.actions.add(r.action);
@@ -230,7 +226,7 @@ public class JimmyDubs implements AIInterface {
 			store.size++;
 		}
 		try{
-			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("Replays/batch.ser"));
+			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
 
 			out.writeObject(store);
 
@@ -239,5 +235,49 @@ public class JimmyDubs implements AIInterface {
 		}catch (IOException e){
 			e.printStackTrace();
 		}
+	}
+
+	public void loadWeights(String fileName) {
+		Weights weights;
+		Random rand = new Random();
+
+		try {
+			ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName));
+
+			weights = (Weights) in.readObject();
+
+			agent.updateWeights(weights.weights);
+
+		}catch (IOException e){
+			e.printStackTrace();
+
+			float[][] newWeights = new float[agent.outputNum][agent.inputNum];
+
+			for(int i = 0; i < agent.outputNum; i++){
+				for(int j = 0; j < agent.inputNum; j++){
+					newWeights[i][j] = rand.nextFloat();
+				}
+			}
+
+			agent.updateWeights(newWeights);
+
+		}catch (ClassNotFoundException e){
+			e.printStackTrace();
+		}
+	}
+
+	public void saveWeights(String fileName){
+		Weights saveWeights = new Weights(agent.weights);
+
+		try {
+			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
+
+			out.writeObject(saveWeights);
+
+			out.flush();
+			out.close();
+		}catch (IOException e){
+				e.printStackTrace();
+			}
 	}
 }
