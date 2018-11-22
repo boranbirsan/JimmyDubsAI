@@ -10,331 +10,268 @@ import java.util.Random;
 
 public class JimmyDubs implements AIInterface {
 
-	private Key inputKey;
-	private boolean player;
-	private CommandCenter cc;
-	private Simulator simulator;
-	private GameState state;
+    private Key inputKey;
+    private boolean player;
+    private CommandCenter cc;
+    private Simulator simulator;
+    private GameState state;
 
-	private int rewardSum = 0;
-	private int[] rewardPerRound = new int[3];
+    double epsilon = 0.25;//random_rate
+    float gamma = 0.1f;//discount_factor
+    float alpha = 0.1f;//learning_rate
+    double lambda = 0.1;
 
-	private int roundNum = 0;
+    private MotionData myMotion = new MotionData();
 
-	double epsilon = 0.25;
-	double gamma = 0.1;//discount_factor
-	double alpha = 0.1;
-	double lambda = 0.1;
+    private String zenWeights = "data/aiData/zen_weights.ser";
+    private String garnetWeights = "data/aiData/garnet_weights.ser";
+    private String ludWeights = "data/aiData/lud_weights.ser";
 
-	MotionData myMotion = new MotionData();
+    private String zenMemory = "data/aiData/zen_batch.ser";
+    private String garnetMemory = "data/aiData/garnet_batch.ser";
+    private String ludMemory = "data/aiData/lud_batch.ser";
 
-	int count = 0;
+    private String zenWeights2 = "data/aiData/zen_weights2.ser";
+    private String garnetWeights2 = "data/aiData/garnet_weights2.ser";
+    private String ludWeights2 = "data/aiData/lud_weights2.ser";
 
-	String zenWeights = "data/aiData/zen_weights5.ser";
-	String garnetWeights = "data/aiData/garnet_weights5.ser";
-	String ludWeights = "data/aiData/lud_weights5.ser";
+    private String zenMemory2 = "data/aiData/zen_batch2.ser";
+    private String garnetMemory2 = "data/aiData/garnet_batch2.ser";
+    private String ludMemory2 = "data/aiData/lud_batch2.ser";
 
-	String zenMemory = "data/aiData/zen_batch5.ser";
-	String garnetMemory = "data/aiData/garnet_batch5.ser";
-	String ludMemory = "data/aiData/lud_batch5.ser";
+    private boolean debug = false;
 
-	String zenWeights2 = "data/aiData/zen_weights6.ser";
-	String garnetWeights2 = "data/aiData/garnet_weights6.ser";
-	String ludWeights2 = "data/aiData/lud_weights6.ser";
+    private ActionObj current_action = new ActionObj("5", 5);
 
-	String zenMemory2 = "data/aiData/zen_batch6.ser";
-	String garnetMemory2 = "data/aiData/garnet_batch6.ser";
-	String ludMemory2 = "data/aiData/lud_batch6.ser";
+    private int myOrigHp = 0, oppOrigHp = 0;
 
-	String rewardFile = "data/aiData/rewards.ser";
+    private Agent agent;
 
-	private boolean debug = false;
+    //private GameData gameData;
 
-	private ActionObj current_action = new ActionObj(0, 0);
+    private FrameData frameData;
 
-	private int myOrigHp = 0, oppOrigHp = 0;
+    private String charName;
 
-	private Agent agent;
+    @Override
+    public void getInformation(FrameData frameData) {
+        this.frameData = frameData;
+        cc.setFrameData(this.frameData, player);
+    }
 
-	private GameData gameData;
-	
-	private FrameData frameData;
+    @Override
+    public int initialize(GameData gameData, boolean player) {
+        System.out.println("Initializing");
 
-	private String charName;
+//        this.gameData = gameData;
+        this.player = player;
+        this.inputKey = new Key();
 
-	@Override
-	public void getInformation(FrameData frameData) {
-		this.frameData = frameData;
-		cc.setFrameData(this.frameData, player);
-	}
+        cc = new CommandCenter();
+        frameData = new FrameData();
 
-	@Override
-	public int initialize(GameData gameData, boolean player) {
-		System.out.println("Initializing");
+        simulator = gameData.getSimulator();
+
+        charName = gameData.getCharacterName(this.player);
+
+        state = new GameState(gameData, cc, player);
+
+        System.out.println("Init_ State");
+
+        agent = new Agent(state, frameData, epsilon, gamma, alpha, lambda, player);
+
+        if (charName.equals("ZEN") && player) {
+            loadWeights(zenWeights);
+            loadReplay(zenMemory);
+        } else if (charName.equals("ZEN") && !player) {
+            loadWeights(zenWeights2);
+            loadReplay(zenMemory2);
+        } else if (charName.equals("GARNET") && player) {
+            loadWeights(garnetWeights);
+            loadReplay(garnetMemory);
+        } else if (charName.equals("GARNET") && !player) {
+            loadWeights(garnetWeights2);
+            loadReplay(garnetMemory2);
+        } else if (charName.equals("LUD") && player) {
+            loadWeights(ludWeights);
+            loadReplay(ludMemory);
+        } else if (charName.equals("LUD") && !player) {
+            loadWeights(ludWeights2);
+            loadReplay(ludMemory2);
+        } else {
+            loadWeights(zenWeights);
+            loadReplay(zenMemory);
+        }
+
+        return 0;
+    }
+
+    @Override
+    public Key input() {
+        return inputKey;
+    }
 
-		this.gameData = gameData;
-		this.player = player;
-		this.inputKey = new Key();
+    @Override
+    public void processing() {
+        if (!frameData.getEmptyFlag()) {
 
-		cc = new CommandCenter();
-		frameData = new FrameData();
+            state.updateState(cc, frameData, player);
+
+            if (cc.getSkillFlag()) {
+                inputKey = cc.getSkillKey();
+            } else {
+                inputKey.empty();
+                cc.skillCancel();
 
-		simulator = gameData.getSimulator();
+			      myOrigHp = frameData.getCharacter(player).getHp();
+			      oppOrigHp = frameData.getCharacter(!player).getHp();
+
+//                FrameData frameDataAhead = simulator.simulate(frameData, this.player, null, null, 10);
+//                state.setPossibleActions(frameData);
+
+                if (debug) {
+                } else {
+                    if(player) {
+                        System.out.println("Next Action");
 
-		charName = this.gameData.getCharacterName(this.player);
+                        System.out.println("Frame Number: " + frameData.getFramesNumber());
+                    }
 
-		state = new GameState(gameData, cc, player);
+                    ActionObj next_action = agent.getNextAction(frameData, myOrigHp, oppOrigHp);
 
-		System.out.println("Init_ State");
+                    current_action = next_action;
 
-		agent = new Agent(state, frameData, epsilon, gamma, alpha, lambda, player);
+                }
 
-		if(charName.equals("ZEN") && player) {
-			loadWeights(zenWeights);
-			loadReplay(zenMemory);
-		}else if(charName.equals("ZEN") && !player){
-			loadWeights(zenWeights2);
-			loadReplay(zenMemory2);
-		}else if (charName.equals("GARNET") && player) {
-			loadWeights(garnetWeights);
-			loadReplay(garnetMemory);
-		}else if (charName.equals("GARNET") && !player){
-			loadWeights(garnetWeights2);
-			loadReplay(garnetMemory2);
-		}else if (charName.equals("LUD") && player){
-			loadWeights(ludWeights);
-			loadReplay(ludMemory);
-		}else if (charName.equals("LUD") && !player){
-			loadWeights(ludWeights2);
-			loadReplay(ludMemory2);
-		}else{
-			loadWeights(zenWeights);
-			loadReplay(zenMemory);
-		}
-
-		return 0;
-	}
-
-	@Override
-	public Key input() {
-		return inputKey;
-	}
+                if(player) {
+                    int skillNo = current_action.getIndex();
+                    System.out.println("Skill No: " + skillNo);
+                    System.out.println("Using Skill: " + current_action.getAction());
+                }
+
+                cc.commandCall(current_action.getAction());
+            }
+        }
+    }
 
-	@Override
-	public void processing() {
-		if(!frameData.getEmptyFlag()){
+    @Override
+    public void roundEnd(int p1HP, int p2HP, int frames) {
+        inputKey.empty();
+        cc.skillCancel();
 
-			state.updateState(cc, frameData, player);
-            //System.out.println("State Update");
+        agent.updateWeights();
 
-            count++;
-			if(cc.getSkillFlag()){
-				inputKey = cc.getSkillKey();
-			}else {
-				inputKey.empty();
-				cc.skillCancel();
+        if (charName.equals("ZEN") && player) {
+            saveWeights(zenWeights);
+            saveReplay(zenMemory);
+        } else if (charName.equals("ZEN") && !player) {
+            saveWeights(zenWeights2);
+            saveReplay(zenMemory2);
+        } else if (charName.equals("GARNET") && player) {
+            saveWeights(garnetWeights);
+            saveReplay(garnetMemory);
+        } else if (charName.equals("GARNET") && !player) {
+            saveWeights(garnetWeights2);
+            saveReplay(garnetMemory2);
+        } else if (charName.equals("LUD") && player) {
+            saveWeights(ludWeights);
+            saveReplay(ludMemory);
+        } else if (charName.equals("LUD") && !player) {
+            saveWeights(ludWeights2);
+            saveReplay(ludMemory2);
+        }
+    }
 
-				if(count >= myMotion.getFrameNumber()) {
+    @Override
+    public void close() {
+        System.out.println("Saved");
+    }
 
-					count = 0;
+    private void loadReplay(String fileName) {
 
-					double reward = agent.getScore(frameData, myOrigHp, oppOrigHp);
+        ObjectInputStream in;
 
-					myOrigHp = frameData.getCharacter(player).getHp();
-					oppOrigHp = frameData.getCharacter(!player).getHp();
+        try {
+            in = new ObjectInputStream(new FileInputStream(fileName));
 
-					//FrameData frameDataAhead = simulator.simulate(frameData, this.player, null, null, 10);
-					state.setPossibleActions(frameData);
+            Storage store = (Storage) in.readObject();
 
-					if (debug) {
-					} else {
-						System.out.println("Next Action");
+            agent.fillMemory(store);
 
-						System.out.println("Frame Number: " + frameData.getFramesNumber());
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
-						ActionObj next_action = agent.update(frameData, reward, current_action.getIndex());
-						current_action = next_action;
+    private void saveReplay(String fileName) {
+        Storage store = new Storage();
+        Transition tran;
 
-						rewardSum += reward;
-					}
+        for (int i = 0; i < agent.memory.size(); i++) {
 
-					int skillNo = current_action.getIndex();
-					System.out.println("Skill No: " + skillNo);
+            tran = agent.memory.get(i);
 
-					cc.commandCall(state.totalActions[current_action.getIndex()].name());
+            store.features.add(tran.features);
+            store.actions.add(tran.action);
+            //store.targets.add(r.target);
+            store.rewards.add(tran.reward);
+            store.nextFeatures.add(tran.nextFeatures);
+            store.size++;
+        }
 
-					myMotion = gameData.getMotionData(player).get(state.totalActions[current_action.getIndex()].ordinal());
+        save(fileName, store);
+    }
 
-					if(skillNo == 20 || skillNo == 21 || skillNo == 22){
-						System.out.println("Using: " + state.totalActions[current_action.getIndex()].name());
-						System.out.println("Frames: " + myMotion.getFrameNumber());
-					}
+    private void loadWeights(String fileName) {
+        Weights weights;
+        Random rand = new Random();
 
-					System.out.println("Using Skill: " + state.totalActions[current_action.getIndex()].name());
+        try {
+            ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName));
 
-				}else{
-					//System.out.println("In Action: " + state.totalActions[current_action.getIndex()].name());
-				}
-			}
-		}
-	}
+            weights = (Weights) in.readObject();
 
-	@Override
-	public void roundEnd(int p1HP, int p2HP, int frames) {
-		inputKey.empty();
-		cc.skillCancel();
+            agent.setWeights(weights.inputWeights, weights.outputWeights);
 
-		if(charName.equals("ZEN") && player) {
-			saveWeights(zenWeights);
-			saveReplay(zenMemory);
-		}else if(charName.equals("ZEN") && !player){
-			saveWeights(zenWeights2);
-			saveReplay(zenMemory2);
-		}else if (charName.equals("GARNET") && player) {
-			saveWeights(garnetWeights);
-			saveReplay(garnetMemory);
-		}else if (charName.equals("GARNET") && !player){
-			saveWeights(garnetWeights2);
-			saveReplay(garnetMemory2);
-		}else if (charName.equals("LUD") && player){
-			saveWeights(ludWeights);
-			saveReplay(ludMemory);
-		}else if (charName.equals("LUD") && !player){
-			saveWeights(ludWeights2);
-			saveReplay(ludMemory2);
-		}
+        } catch (IOException | ClassNotFoundException e) {
 
-		rewardPerRound[roundNum] = rewardSum;
+            System.out.println("In CATCH");
+            float[][] inputWeights = new float[agent.inputNum][agent.hiddenLayerNum];
+            float[][] outputWeights = new float[agent.hiddenLayerNum][agent.outputNum];
 
-		roundNum++;
-	}
+            for (int i = 0; i < agent.hiddenLayerNum; i++) {
+                System.out.println("In FOR LOOP");
+                for (int j = 0; j < agent.inputNum; j++) {
+                    inputWeights[j][i] = rand.nextFloat();
+                }
+                for (int j = 0; j < agent.outputNum; j++) {
+                    outputWeights[i][j] = rand.nextFloat();
+                }
+            }
 
-	@Override
-	public void close() {
-		saveRewards(rewardFile);
-		System.out.println("Saved");
-	}
+            agent.setWeights(inputWeights, outputWeights);
 
-	public void loadReplay(String fileName){
+            //e.printStackTrace();
 
-		ObjectInputStream in;
+        }
+    }
 
-		try{
-			in = new ObjectInputStream(new FileInputStream(fileName));
+    private void saveWeights(String fileName) {
+        Weights saveWeights = new Weights(agent.inputWeights, agent.outputWeights);
 
-			Storage store = (Storage) in.readObject();
+        save(fileName, saveWeights);
+    }
 
-			for (int i = 0; i < store.size; i++){
-				float[] arr = store.features.get(i);
+    private void save(String fileName, Object obj) {
+        try {
+            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
 
-				int action = store.actions.get(i);
-				Double target = store.targets.get(i);
+            out.writeObject(obj);
 
-				Replay replay = new Replay(arr, target, action);
-
-				agent.memory.add(replay);
-			}
-		}catch (IOException | ClassNotFoundException e){
-			e.printStackTrace();
-		}
-	}
-
-	public void saveReplay(String fileName){
-		Storage store = new Storage();
-
-		for (int i = 0; i < agent.memory.size(); i++) {
-
-			Replay r = agent.memory.get(i);
-
-			store.features.add(r.features);
-			store.actions.add(r.action);
-			store.targets.add(r.target);
-			store.size++;
-		}
-		try{
-			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
-
-			out.writeObject(store);
-
-			out.flush();
-			out.close();
-		}catch (IOException e){
-			e.printStackTrace();
-		}
-	}
-
-	public void loadWeights(String fileName) {
-		Weights weights;
-		Random rand = new Random();
-
-		try {
-			ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName));
-
-			weights = (Weights) in.readObject();
-
-			agent.setWeights(weights.weights);
-
-		}catch (IOException e){
-
-			float[][] newWeights = new float[agent.outputNum][agent.inputNum];
-
-//			for(int i = 0; i < agent.outputNum; i++){
-//				for(int j = 0; j < agent.inputNum; j++){
-//					//newWeights[i][j] = rand.nextFloat();
-//				}
-//			}
-
-			agent.setWeights(newWeights);
-			System.out.println(newWeights);
-
-			e.printStackTrace();
-
-		}catch (ClassNotFoundException e){
-			e.printStackTrace();
-		}
-	}
-
-	public void saveWeights(String fileName){
-		Weights saveWeights = new Weights(agent.weights);
-
-		try {
-			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
-
-			out.writeObject(saveWeights);
-
-			out.flush();
-			out.close();
-		}catch (IOException e){
-				e.printStackTrace();
-			}
-	}
-
-	public void saveRewards(String fileName){
-
-		Rewards rewards = new Rewards();
-
-		rewards.rewardsPerRound.add(rewardPerRound);
-
-		float avg;
-		int sum = 0;
-
-		for(int i = 0; i < rewardPerRound.length; i++){
-			sum += rewardPerRound[i];
-		}
-
-		avg = sum/3;
-
-		rewards.avgPerGame.add(avg);
-
-		try{
-			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName));
-
-			out.writeObject(rewards);
-
-			out.flush();
-			out.close();
-		}catch (IOException e){
-			e.printStackTrace();
-		}
-	}
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

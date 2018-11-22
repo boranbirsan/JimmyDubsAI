@@ -1,18 +1,16 @@
-import enumerate.Action;
 
 public class ActionObj {
 
-    private float value;
+    private String action;
     private int index;
-    private Action action;
 
-    public ActionObj(float value, int index){
-        this.value = value;
+    public ActionObj(String action, int index){
+        this.action = action;
         this.index = index;
     }
 
-    public float getValue() {
-        return value;
+    public String getAction() {
+        return action;
     }
 
     public int getIndex() {

@@ -8,19 +8,25 @@ public class Agent {
     Simulator simulator;
     GameState state;
     double epsilon;
-    double alpha;
+    float alpha;
     double lambda;
-    double discount_factor;
+    float gamma;
 
-    Random rand = new Random();
+    private Random rand = new Random();
 
-    int outputNum = 40;
+    int outputNum = 12;
+    int hiddenLayerNum = 17;
     int inputNum = 21;
 
     float lastValue;
 
-    float[][] weights;
-    float[] features;
+    float[][] inputWeights;
+    float[][] outputWeights;
+
+    private float[] lastFeatures;
+    private float[] features;
+    private float[] nextFeatures;
+    private int action;
 
     boolean player;
 
@@ -28,14 +34,17 @@ public class Agent {
 
     LinkedList<Action> myAction;
 
-    ArrayList<Replay> memory;
-    int maxMemory = 5000;
+    ArrayList<Transition> memory;
+    int maxMemory = 500;
     int memorySize = 32;
+    int memoryCount = 0;
 
-    public Agent(GameState state, FrameData fd, double epsilon, double discount_factor, double alpha, double lambda, boolean player) {
+    NeuralNet NN;
+
+    public Agent(GameState state, FrameData fd, double epsilon, float gamma, float alpha, double lambda, boolean player) {
         this.state = state;
         this.frameData = fd;
-        this.discount_factor = discount_factor;
+        this.gamma = gamma;
         this.epsilon = epsilon;
         this.alpha = alpha;
         this.lambda = lambda;
@@ -44,94 +53,71 @@ public class Agent {
         memory = new ArrayList<>();
 
         myAction = new LinkedList<>();
+
+        NN = new NeuralNet(inputNum, hiddenLayerNum, outputNum, gamma, alpha);
     }
 
-    public ActionObj getNextAction(){
+    public ActionObj getNextAction(FrameData fd, int myOrigHp, int oppOrigHp){
 
-        myAction.clear();
+        features = state.getFeatures(fd);
+
+        if(lastFeatures != null) {
+            if(player){
+                System.out.println("Batch update");
+            }
+
+            if(memory.size() >= maxMemory){
+
+                if(memoryCount == maxMemory*2){
+                    memoryCount = memoryCount - maxMemory;
+                }
+
+                memory.remove(memoryCount - maxMemory);
+                memory.add(memoryCount - maxMemory, new Transition(lastFeatures, action, getScore(fd, myOrigHp, oppOrigHp), features));
+
+                memoryCount++;
+
+                updateFromBatch(memorySize);
+
+            }else{
+                memory.add(new Transition(lastFeatures, action, getScore(fd, myOrigHp, oppOrigHp), features));
+                memoryCount++;
+
+                updateFromBatch(memory.size());
+            }
+        }
+
         double random_act = rand.nextDouble();
 
         if (random_act <= epsilon){
-            int max = state.myActionIndex.size();
-            int randomIndex = rand.nextInt(max);
+            int randomIndex = rand.nextInt(state.actions.length);
 
-            float q = getExpectation(weights[state.myActionIndex.get(randomIndex)]);
+            ActionObj action = new ActionObj(state.actions[randomIndex], randomIndex);
 
-            myAction.add(state.totalActions[randomIndex]);
-
-            ActionObj action = new ActionObj(q, randomIndex);
             return action;
         }
 
         float maxQ = -99999999;
         int chosenActIndex = 0;
+        String actionValue = "";
 
-        for(int i = 0; i < state.myActionIndex.size(); i++){
+        float[] output = NN.calculate(features);
 
-            myAction.clear();
+        for(int i = 0; i < output.length; i++) {
 
-            float q = getExpectation(weights[state.myActionIndex.get(i)]);
-
-            if(q > maxQ){
-                chosenActIndex = state.myActionIndex.get(i);
-                maxQ = q;
-
-                myAction.add(state.totalActions[chosenActIndex]);
+            if (output[i] > maxQ) {
+                maxQ = output[i];
+                actionValue = state.actions[i];
+                chosenActIndex = i;
             }
+
         }
-        return new ActionObj(maxQ, chosenActIndex);
+        action = chosenActIndex;
+        lastFeatures = features;
+        return new ActionObj(actionValue, chosenActIndex);
+
     }
 
-    public ActionObj update(FrameData fd, double reward, int action_index){
-
-        features = state.getFeatures(fd);
-
-        ActionObj action = getNextAction();
-
-//        int activeInputs = 0;
-//        for (int i = 0; i < features.length; i++){
-//            if(features[i]){
-//                activeInputs++;
-//            }
-//        }
-
-//        double new_alpha;
-//        if (activeInputs == 0 ){
-//            new_alpha = alpha;
-//        }else{
-//            new_alpha = alpha / activeInputs;
-//        }
-
-        double td_target = reward + discount_factor*action.getValue();
-        double correction = td_target - lastValue;
-        double fact1 = alpha * correction;
-
-        updateWeights(weights[action_index], state.previous_features, fact1);
-
-        if(memory.size() >= maxMemory){
-
-            updateFromBatch(memorySize);
-        }
-
-        memory.add(new Replay(features, fact1, action.getIndex()));
-
-        if(player) {
-            System.out.println("[");
-            float[] debugWeights = weights[action_index];
-            for(int i = 0; i < weights[action_index].length; i++){
-                System.out.println(" " + debugWeights[i]);
-            }
-            System.out.println("]");
-        }
-
-        state.previous_features = features;
-        lastValue = action.getValue();
-        return action;
-    }
-
-    public void setWeights(float[][] weights){
-        this.weights = weights;
-    }
 
     public void updateFromBatch(int size){
         Random random = new Random();
@@ -144,29 +130,36 @@ public class Agent {
 
         Iterator<Integer> iter = intSet.iterator();
         while(iter.hasNext()){
-            Replay replay = memory.get(iter.next());
-            float[] weight = weights[replay.action];
-            updateWeights(weight, replay.features, replay.target);
+            Transition transition = memory.get(iter.next());
+
+            NN.backProp(transition.features, transition.reward, transition.action, transition.nextFeatures);
         }
     }
 
-    public void updateWeights(float[] weights, float[] features, double a){
-        for(int i = 0; i < features.length; i++){
-            weights[i] += a * features[i];
-        }
+    public void updateWeights(){
+        NN.fixedInputWeights = NN.inputWeights;
+        NN.fixedOutputWeights = NN.outputWeights;
     }
 
-    public void setFeatures(float[] features){
-        this.features = features;
+    public void setWeights(float[][] inputWeights, float[][] outputWeights){
+        System.out.println("Setting Weights");
+        this.inputWeights = inputWeights;
+        this.outputWeights = outputWeights;
+        NN.setWeights(inputWeights, outputWeights);
     }
 
-    public float getExpectation(float[] weights){
-        float sum = 0;
+    public void fillMemory(Storage store){
+        for (int i = 0; i < store.size; i++) {
+            float[] arr = store.features.get(i);
+            float reward = store.rewards.get(i);
+            int action = store.actions.get(i);
+            float[] nextFeatures = store.nextFeatures.get(i);
+            //Double target = store.targets.get(i);
 
-        for (int i = 0; i < features.length; i++){
-            sum += weights[i] * features[i];
+            memory.add(new Transition(arr, action, reward, nextFeatures));
         }
-        return sum;
+
+        memoryCount = memory.size();
     }
 
     public int getScore(FrameData fd, int myOrigHp, int oppOrigHp) {

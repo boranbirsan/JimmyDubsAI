@@ -20,14 +20,9 @@ public class GameState {
 
     private boolean player;
 
-    private CharacterData myChar;
-
-    private CharacterData opp;
-
     public Action[] totalActions;
-    private Action[] actionAir;
-    private Action[] actionGround;
-    private Action spSkill;
+
+    public String[] actions;
 
     public LinkedList<Action> myActions;
     public ArrayList<Integer> myActionIndex;
@@ -41,36 +36,37 @@ public class GameState {
 
         previous_features = new float[inputNum];
 
-        myActions  = new LinkedList<>();
-        myActionIndex = new ArrayList<>();
+        actions = new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C"};
+//        myActions  = new LinkedList<>();
+//        myActionIndex = new ArrayList<>();
 
-        actionAir = new Action[] { Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA, Action.AIR_DB,
-                Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB, Action.AIR_D_DF_FA, Action.AIR_D_DF_FB,
-                Action.AIR_F_D_DFA, Action.AIR_F_D_DFB, Action.AIR_D_DB_BA, Action.AIR_D_DB_BB };
-        actionGround = new Action[] { Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK, Action.DASH,
-                Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD, Action.CROUCH_GUARD, Action.THROW_A,
-                Action.THROW_B, Action.STAND_A, Action.STAND_B, Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA,
-                Action.STAND_FB, Action.CROUCH_FA, Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB,
-                Action.STAND_F_D_DFA, Action.STAND_F_D_DFB, Action.STAND_D_DB_BB };
-        spSkill = Action.STAND_D_DF_FC;
 
-        totalActions = new Action[]{ Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA,
-                Action.AIR_DB, Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB,
-                Action.AIR_D_DF_FA, Action.AIR_D_DF_FB, Action.AIR_F_D_DFA, Action.AIR_F_D_DFB,
-                Action.AIR_D_DB_BA, Action.AIR_D_DB_BB, Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK,
-                Action.DASH, Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD,
-                Action.CROUCH_GUARD, Action.THROW_A, Action.THROW_B, Action.STAND_A, Action.STAND_B,
-                Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA, Action.STAND_FB, Action.CROUCH_FA,
-                Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB, Action.STAND_F_D_DFA,
-                Action.STAND_F_D_DFB, Action.STAND_D_DB_BB, Action.STAND_D_DF_FC};
+
+//        actionAir = new Action[] { Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA, Action.AIR_DB,
+//                Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB, Action.AIR_D_DF_FA, Action.AIR_D_DF_FB,
+//                Action.AIR_F_D_DFA, Action.AIR_F_D_DFB, Action.AIR_D_DB_BA, Action.AIR_D_DB_BB };
+//        actionGround = new Action[] { Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK, Action.DASH,
+//                Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD, Action.CROUCH_GUARD, Action.THROW_A,
+//                Action.THROW_B, Action.STAND_A, Action.STAND_B, Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA,
+//                Action.STAND_FB, Action.CROUCH_FA, Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB,
+//                Action.STAND_F_D_DFA, Action.STAND_F_D_DFB, Action.STAND_D_DB_BB };
+//        spSkill = Action.STAND_D_DF_FC;
+//
+//        totalActions = new Action[]{ Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.AIR_DA,
+//                Action.AIR_DB, Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB,
+//                Action.AIR_D_DF_FA, Action.AIR_D_DF_FB, Action.AIR_F_D_DFA, Action.AIR_F_D_DFB,
+//                Action.AIR_D_DB_BA, Action.AIR_D_DB_BB, Action.STAND_D_DB_BA, Action.BACK_STEP, Action.FORWARD_WALK,
+//                Action.DASH, Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD,
+//                Action.CROUCH_GUARD, Action.THROW_A, Action.THROW_B, Action.STAND_A, Action.STAND_B,
+//                Action.CROUCH_A, Action.CROUCH_B, Action.STAND_FA, Action.STAND_FB, Action.CROUCH_FA,
+//                Action.CROUCH_FB, Action.STAND_D_DF_FA, Action.STAND_D_DF_FB, Action.STAND_F_D_DFA,
+//                Action.STAND_F_D_DFB, Action.STAND_D_DB_BB, Action.STAND_D_DF_FC};
     }
 
     public void updateState(CommandCenter cc, FrameData frameData, boolean player){
         this.cc = cc;
         this.cc.setFrameData(frameData, player);
         this.frameData = frameData;
-        this.myChar = frameData.getCharacter(player);
-        this.opp = frameData.getCharacter(!player);
     }
 
     public float[] getFeatures(FrameData frameData){
@@ -231,33 +227,33 @@ public class GameState {
         return features;
     }
 
-    public void setPossibleActions(FrameData frameData){
-        myActions.clear();
-        myActionIndex.clear();
-
-        CharacterData myChar = frameData.getCharacter(player);
-        int energy = myChar.getEnergy();
-        ArrayList<MotionData> VM = gameData.getMotionData(player);
-
-        if(myChar.getState() == State.AIR){
-            for(int i = 0; i < actionAir.length; i++){
-                if (Math.abs(VM.get(actionAir[i].ordinal()).getAttackStartAddEnergy()) <= energy) {
-                    myActions.add(actionAir[i]);
-                    myActionIndex.add(i);
-                }
-            }
-        }else{
-            for(int i = 0; i < actionGround.length; i++){
-                if (Math.abs(VM.get(actionGround[i].ordinal()).getAttackStartAddEnergy())  <= energy) {
-                    myActions.add(actionGround[i]);
-                    myActionIndex.add(i + actionAir.length);
-                }
-            }
-
-            if (Math.abs(VM.get(totalActions[actionAir.length + actionGround.length].ordinal()).getAttackStartAddEnergy()) <= energy) {
-                myActions.add(spSkill);
-                myActionIndex.add(actionAir.length + actionGround.length);
-            }
-        }
-    }
+//    public void setPossibleActions(FrameData frameData){
+//        myActions.clear();
+//        myActionIndex.clear();
+//
+//        CharacterData myChar = frameData.getCharacter(player);
+//        int energy = myChar.getEnergy();
+//        ArrayList<MotionData> VM = gameData.getMotionData(player);
+//
+//        if(myChar.getState() == State.AIR){
+//            for(int i = 0; i < actionAir.length; i++){
+//                if (Math.abs(VM.get(actionAir[i].ordinal()).getAttackStartAddEnergy()) <= energy) {
+//                    myActions.add(actionAir[i]);
+//                    myActionIndex.add(i);
+//                }
+//            }
+//        }else{
+//            for(int i = 0; i < actionGround.length; i++){
+//                if (Math.abs(VM.get(actionGround[i].ordinal()).getAttackStartAddEnergy())  <= energy) {
+//                    myActions.add(actionGround[i]);
+//                    myActionIndex.add(i + actionAir.length);
+//                }
+//            }
+//
+//            if (Math.abs(VM.get(totalActions[actionAir.length + actionGround.length].ordinal()).getAttackStartAddEnergy()) <= energy) {
+//                myActions.add(spSkill);
+//                myActionIndex.add(actionAir.length + actionGround.length);
+//            }
+//        }
+//    }
 }

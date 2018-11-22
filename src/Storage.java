@@ -3,14 +3,17 @@ import java.util.ArrayList;
 
 public class Storage implements Serializable {
     ArrayList<float[]> features;
-    ArrayList<Double> targets;
     ArrayList<Integer> actions;
+    //ArrayList<Double> targets;
+    ArrayList<Float> rewards;
+    ArrayList<float[]> nextFeatures;
     int size = 0;
 
     public Storage() {
         super();
         features = new ArrayList<>();
-        targets = new ArrayList<>();
         actions = new ArrayList<>();
+        rewards = new ArrayList<>();
+        nextFeatures = new ArrayList<>();
     }
 }

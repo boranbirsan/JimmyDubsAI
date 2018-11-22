@@ -1,9 +1,11 @@
 import java.io.Serializable;
 
 public class Weights implements Serializable{
-    float[][] weights;
+    float[][] inputWeights;
+    float[][] outputWeights;
 
-    public Weights(float[][] weights){
-        this.weights = weights;
+    public Weights(float[][] inputWeights, float[][] outputWeights){
+        this.inputWeights = inputWeights;
+        this.outputWeights = outputWeights;
     }
 }
